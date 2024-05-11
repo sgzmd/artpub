@@ -5,11 +5,19 @@ import newspaper
 from lxml import etree
 from bs4 import BeautifulSoup
 import os
+import urllib.parse as urlparse
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def cleanup_file_name(file_name):
+    if file_name.find("%") != -1:
+        file_name = urlparse.unquote(file_name)
     return file_name.replace(" ", "_").replace(":", "").replace("/", "")
 
 def save_file(url, folder) -> str:
+    logging.info(f"Downloading {url}")
     # Tries to guess the filename (e.g., "image.png")
     filename = cleanup_file_name(os.path.basename(url))
     # If no filename can be guessed, we can create a random one
