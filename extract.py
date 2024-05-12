@@ -218,24 +218,7 @@ def main():
     
     fn = infer_file_name(articles[0], args)
     epub.write_epub(os.path.join(out_dir, fn), book, {})
-        
-        # file_name = art.title.replace(" ", "_").replace(":", "").replace("/", "")
-        # file_path = os.path.join(
-        #     out_dir, file_name + ".html"
-        # )
-        
-        # with open(file_path, 'w') as f:
-        #     f.write(str(soup))
-        #     f.close()
-        
-    
-    # for html_file in html_files:
-    #     c1 = epub.EpubHtml(title="Intro", file_name=html_file)
-    #     c1.content = open(html_file, 'r').read()
-    #     book.add_item(c1)
-    #     book.toc.append(c1)
-    #     book.spine.append(c1)    
-    
+
 
 if __name__ == "__main__":
     main()
