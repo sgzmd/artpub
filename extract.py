@@ -15,12 +15,42 @@ import newspaper
 import magic
 import requests
 
+from requests.exceptions import RequestException
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+
+REQUEST_TIMEOUT = 5000
+
+def fetch_image_data(img_url, retry_count=3, timeout_duration=5):
+    """
+    Fetches image data from a URL with retries and a timeout.
+
+    Args:
+    img_url (str): URL of the image to download.
+    retry_count (int): Maximum number of retries.
+    timeout_duration (int): Timeout for each request in seconds.
+
+    Returns:
+    bytes: The content of the image if successful, None otherwise.
+    """
+    attempts = 0
+    while attempts < retry_count:
+        try:
+            # Make a GET request with a timeout
+            response = requests.get(img_url, timeout=timeout_duration)
+            # Check if the request was successful
+            response.raise_for_status()
+            return response.content
+        except RequestException as e:
+            print(f"Attempt {attempts + 1} failed: {e}")
+            attempts += 1
+            if attempts >= retry_count:
+                print("Maximum retry attempts reached, failing gracefully.")
+                return None
 
 def cleanup_file_name(file_name):
     if file_name.find("%") != -1:
@@ -173,8 +203,8 @@ def main():
     articles: list[newspaper.Article] = []
 
     for url in urls:
-        logging.info(f"Processing article URL {url}")
-        response = requests.get(url, cookies=cookies)
+        logging.info("Processing article URL %s", url)
+        response = requests.get(url, cookies=cookies, timeout=REQUEST_TIMEOUT)
 
         if response.status_code == 200:
             downloaded = response.content
@@ -229,7 +259,7 @@ def main():
                 img["src"] = image_names[img_url]
                 continue
 
-            img_data = requests.get(img_url).content
+            img_data = fetch_image_data(img_url)
             content_type = magic_mime.from_buffer(img_data)
 
             ext = mimetypes.guess_extension(content_type)
