@@ -47,3 +47,14 @@ $ (test) [sgzmd@RK:code/artpub]$ ./artpub.py --url \
 You will find that image extraction is sporadic - top image on many websites is
 not extracted properly. Broadly, it only works on plain old `<img src="..." />`
 tags, and everything fancy confuses the script.
+
+## Acknowledgements
+
+This script was made possible with:
+
+- [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/): Library for pulling data out of HTML and XML files. Thanks to Leonard Richardson for creating and maintaining this library.
+- [lxml](https://lxml.de/): Library for processing XML and HTML. Thanks to the lxml project team for creating and maintaining this library.
+- [ebooklib](https://github.com/aerkalov/ebooklib): Library for handling EPUB2/EPUB3 and Kindle format. Thanks to Aleksandar Erkalovic for creating and maintaining this library.
+- [newspaper](https://github.com/codelucas/newspaper): Library for extracting & curating articles. Thanks to Lucas Ou-Yang for creating and maintaining this library.
+- [magic](https://github.com/ahupp/python-magic): Library for identifying data types. Thanks to Adam Hupp for creating and maintaining this library.
+- [requests](https://docs.python-requests.org/en/latest/): Library for making HTTP requests. Thanks to Kenneth Reitz for creating this library and to the maintainers for their continued work.
