@@ -37,6 +37,7 @@ def fetch_image_data(img_url, retry_count=3, timeout_duration=5):
     Returns:
     bytes: The content of the image if successful, None otherwise.
     """
+    logging.debug("Fetching image data from %s", img_url)
     attempts = 0
     while attempts < retry_count:
         try:
@@ -53,6 +54,15 @@ def fetch_image_data(img_url, retry_count=3, timeout_duration=5):
                 return None
 
 def cleanup_file_name(file_name):
+    """
+    Cleans up a file name by replacing certain characters and removing spaces.
+
+    Args:
+        file_name (str): The original file name.
+
+    Returns:
+        str: The cleaned up file name.
+    """
     if file_name.find("%") != -1:
         file_name = unquote(file_name)
     return (
@@ -65,26 +75,21 @@ def cleanup_file_name(file_name):
     )
 
 
-def save_file(url, base_dir, img_dir) -> str:
-    logging.debug(f"Downloading {url}")
-    # Tries to guess the filename (e.g., "image.png")
-    filename = cleanup_file_name(os.path.basename(url))
-    # If no filename can be guessed, we can create a random one
-    # You may want to improve this logic based on your needs
-    if not filename:
-        filename = "file"
-    file_path = os.path.join(base_dir, img_dir, filename)
-    url_path = os.path.join(img_dir, filename)
-    # Check if file already exists
-    if not os.path.isfile(file_path):
-        r = requests.get(url)
-        with open(file_path, "wb") as f:
-            f.write(r.content)
-
-    return url_path
-
-
 def infer_title(art: newspaper.Article, args) -> str:
+    """
+    Infer the title of an article.
+
+    If the `args.title` argument is provided, it will be returned as the title.
+    Otherwise, if the `art.title` is not empty, it will be returned as the title.
+    If both `args.title` and `art.title` are empty, the `art.url` will be returned as the title.
+
+    Args:
+        art (newspaper.Article): The article object.
+        args: Additional arguments.
+
+    Returns:
+        str: The inferred title of the article.
+    """
     if args.title:
         return args.title
 
@@ -96,6 +101,16 @@ def infer_title(art: newspaper.Article, args) -> str:
 
 
 def infer_file_name(art: newspaper.Article, args) -> str:
+    """
+    This function infers the file name based on the provided newspaper article and arguments.
+    
+    Parameters:
+    art (newspaper.Article): The article from which to infer the file name.
+    args (argparse.Namespace): The arguments provided to the script.
+
+    Returns:
+    str: The inferred file name.
+    """
     if args.epub:
         return args.epub
 
@@ -106,23 +121,73 @@ def infer_file_name(art: newspaper.Article, args) -> str:
     return cleanup_file_name(file_name) + ".epub"
 
 
+
 def url_to_base_path(url):
-    # Parse the original URL
+    """
+    Convert a URL to a base path by removing the last component of the path, if necessary.
+
+    Args:
+        url (str): The URL to convert.
+
+    Returns:
+        str: The modified URL with the base path.
+
+    Example:
+        >>> url_to_base_path('https://example.com/path/to/file.html')
+        'https://example.com/path/to/'
+
+        >>> url_to_base_path('https://example.com')
+        'https://example.com/'
+    """
     parsed_url = urlparse(url)
-
-    # Extract the path and remove the last component if necessary
     path_components = parsed_url.path.split("/")
-    if len(path_components) > 1:  # This check is to ensure there is a path to work with
-        base_path = "/".join(path_components[:-1])  # Remove the last element
+    if len(path_components) > 1:
+        base_path = "/".join(path_components[:-1])
     else:
-        base_path = parsed_url.path  # No change needed if there's nothing to remove
-
-    # Create the new URL with the modified path
-    new_url = parsed_url._replace(path=base_path + "/")  # Ensure the path ends with '/'
+        base_path = parsed_url.path
+    new_url = parsed_url._replace(path=base_path + "/")
     return urlunparse(new_url)
 
 
+def clean_unused_tags(soup: BeautifulSoup, tags: list[str]) -> BeautifulSoup:
+    """
+    Removes unused tags from the given BeautifulSoup object.
+
+    Args:
+        soup (BeautifulSoup): The BeautifulSoup object representing the HTML document.
+        tags (list[str]): A list of tags to be removed from the HTML document.
+
+    Returns:
+        BeautifulSoup: The modified BeautifulSoup object with the unused tags
+        removed.
+    """
+    
+    for tag in soup.find_all(tags):
+        tag.decompose()
+        
+    return soup
+
 def main():
+    """
+    Process URLs and generate an EPUB file.
+
+    This function takes command line arguments, including a list of URLs to process,
+    an output directory, verbosity level, cookies, and optional parameters for the
+    EPUB file such as title and author. It downloads the articles from the URLs,
+    extracts relevant information, and generates an EPUB file containing the articles.
+
+    Args:
+        --urls, -u (list[str]): List of URLs to process, each must start with http.
+        --out_dir, -o (str): Relative or absolute path to output directory.
+        --verbose, -v (int): Level of verbosity, default 0.
+        --cookies, -c (str): Cookies to use for requests (e.g., "cookie1=value1; cookie2=value2").
+        --epub, -e (str): Output file name (or infer from title if not provided).
+        --title, -t (str): Title of the EPUB file (or infer from URL if not provided).
+        --author, -a (str): Author of the EPUB file (or infer from article if not provided).
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(description="Process some URLs.")
     parser.add_argument(
         "--urls",
@@ -186,6 +251,18 @@ def main():
     else:
         logging.basicConfig(level=logging.DEBUG)
 
+    process_articles(args)
+
+def process_articles(args):
+    """
+    Process a list of article URLs and generate an EPUB book.
+
+    Args:
+        args (Namespace): Command-line arguments containing the URLs and output directory.
+
+    Returns:
+        None
+    """
     urls = args.urls
     out_dir = args.out_dir
 
@@ -224,6 +301,13 @@ def main():
             )
 
             soup = BeautifulSoup(xhtml, "lxml")
+            soup = clean_unused_tags(soup, 
+                                     ["script", 
+                                      "style", 
+                                      "noscript", 
+                                      "iframe",
+                                      "source",
+                                      "svg"])            
 
             for source in soup.find_all("source"):
                 source.decompose()
@@ -250,29 +334,32 @@ def main():
 
         soup = BeautifulSoup(html, "lxml")
         for img in soup.find_all("img"):
-            img_url = img["src"]
-            img.attrs = {}
-            if not img_url.startswith("http"):
-                img_url = url_to_base_path(art.url) + "/" + img_url
+            if "src" in img.attrs:
+                img_url = img["src"]
+                img.attrs = {}
+                if not img_url.startswith("http"):
+                    img_url = url_to_base_path(art.url) + "/" + img_url
 
-            if img_url in image_names:
-                img["src"] = image_names[img_url]
-                continue
+                if img_url in image_names:
+                    img["src"] = image_names[img_url]
+                    continue
 
-            img_data = fetch_image_data(img_url)
-            content_type = magic_mime.from_buffer(img_data)
+                img_data = fetch_image_data(img_url)
+                content_type = magic_mime.from_buffer(img_data)
 
-            ext = mimetypes.guess_extension(content_type)
-            file_name = "img/image_" + str(len(image_names)) + ext
-            image_names[img_url] = file_name
+                ext = mimetypes.guess_extension(content_type)
+                file_name = "img/image_" + str(len(image_names)) + ext
+                image_names[img_url] = file_name
 
-            book.add_item(
-                epub.EpubItem(
-                    file_name=file_name, media_type=content_type, content=img_data
+                book.add_item(
+                    epub.EpubItem(
+                        file_name=file_name, media_type=content_type, content=img_data
+                    )
                 )
-            )
 
-            img["src"] = file_name
+                img["src"] = file_name
+            else:
+                logging.debug("Image tag without src attribute: %s, skipping", str(img))
 
         html = str(soup)
 
